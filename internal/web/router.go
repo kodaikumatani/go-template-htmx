@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kodaikumatani/go-template-htmx/internal/service"
 	"github.com/kodaikumatani/go-template-htmx/internal/web/view"
 )
 
@@ -19,7 +20,7 @@ var assets embed.FS
 
 // NewHandler builds the router. テンプレートの Parse もここで行うので、
 // 壊れたテンプレートは起動時に error になる。
-func NewHandler(logger *slog.Logger) (http.Handler, error) {
+func NewHandler(logger *slog.Logger, issueService *service.IssueService) (http.Handler, error) {
 	templatesFS, err := fs.Sub(assets, "templates")
 	if err != nil {
 		return nil, fmt.Errorf("sub templates: %w", err)
@@ -33,7 +34,12 @@ func NewHandler(logger *slog.Logger) (http.Handler, error) {
 		return nil, fmt.Errorf("sub static: %w", err)
 	}
 
-	issues := &issueHandler{view: renderer}
+	issues := &issueHandler{
+		view:    renderer,
+		issues:  issueService,
+		logger:  logger,
+		perPage: service.DefaultPerPage,
+	}
 
 	mux := http.NewServeMux()
 	// Go 1.22+ の ServeMux は "METHOD /path/{param}" を解釈できるので

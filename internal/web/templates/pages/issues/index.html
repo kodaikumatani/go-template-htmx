@@ -1,5 +1,6 @@
 {{ define "content" }}
-<h1>Issues</h1>
+{{/* #issue-count は Step 3 で hx-swap-oob の的にする。 */}}
+<h1>Issues <span id="issue-count" class="count">{{ .Total }}</span></h1>
 
 {{/* Step 2 でこの中身を partials/issues/list.html に切り出し、
      #issue-list だけを HTMX で差し替えられるようにする。 */}}

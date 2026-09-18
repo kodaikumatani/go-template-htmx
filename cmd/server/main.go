@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kodaikumatani/go-template-htmx/internal/service"
+	"github.com/kodaikumatani/go-template-htmx/internal/store"
 	"github.com/kodaikumatani/go-template-htmx/internal/web"
 )
 
@@ -25,7 +27,29 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
-	handler, err := web.NewHandler(logger)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	dsn := os.Getenv("DB_DSN")
+	if dsn == "" {
+		dsn = store.DefaultDSN
+	}
+	db, err := store.Open(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	issueStore := store.NewIssueStore(db)
+	seeded, err := issueStore.SeedIfEmpty(ctx)
+	if err != nil {
+		return err
+	}
+	if seeded > 0 {
+		logger.Info("seeded sample issues", "count", seeded)
+	}
+
+	handler, err := web.NewHandler(logger, service.NewIssueService(issueStore))
 	if err != nil {
 		return err
 	}
@@ -41,9 +65,6 @@ func run(logger *slog.Logger) error {
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {

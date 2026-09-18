@@ -146,19 +146,35 @@ http.Handler → service → repository(SQLite) → domain → ViewModel → htm
   1 つの巨大なテンプレートセットにはできず、**ベースセットを `Clone()` してページを 1 枚足す**構成になる。
 - **完了条件**: `make run` → `http://localhost:8080/issues` にダミー一覧が出る（達成）。
 
-## Step 1: 永続化層（SQLite）と 3 層構成
+## Step 1: 永続化層（SQLite）と 3 層構成 ✅ done
 
-- **目的**: HTMX に入る前に「データの流れ」を通す。
-- やること
-  - `domain.Issue{ID, Title, Body, Status, CreatedAt, UpdatedAt}`、`domain.Status`（`open` / `closed`）
-  - `store/schema.sql` + 起動時マイグレーション（`CREATE TABLE IF NOT EXISTS`）
-  - `service.IssueRepository` interface を service 側に定義 → `store.IssueStore` が実装
-  - `service.List(ctx, ListQuery) (ListResult, error)`：`ListQuery{Q, Status, Page, PerPage}`
-  - seed データ投入用の小さなコマンドか、起動時 seed（件数 0 のときだけ）
-  - `view/model.go` に ViewModel（`IssueVM{ID, Title, StatusLabel, IsOpen, CreatedAtHuman}`）。
-    **domain をそのまま template に渡さない**のがポイント
-- **完了条件**: 一覧が DB の中身で表示される。
-- **注意**: SQLite は書き込み直列なので `db.SetMaxOpenConns(1)` か WAL 有効化（`_pragma=journal_mode(WAL)`）を入れておく。
+- **目的**: htmx に入る前に「データの流れ」を通す。
+- やったこと
+  - `internal/domain/issue.go`: `Issue` / `Status`（`open` / `closed`）/ `ParseStatus` / `IssueQuery` / `ErrNotFound`
+  - `internal/store/schema.sql`: `CREATE TABLE IF NOT EXISTS` を起動時に毎回実行（冪等なので
+    マイグレーションツールは不要）。`status` は `CHECK` 制約で 2 値に固定
+  - `internal/store/db.go`: `modernc.org/sqlite`（ドライバ名は **`sqlite`**、cgo 不要）。
+    DSN は `DB_DSN`（既定 `file:issues.db?_pragma=journal_mode(WAL)&...`）
+  - `internal/store/issue.go`: `IssueStore.List`（絞り込み + 総数 + LIMIT/OFFSET）、`SeedIfEmpty`
+  - `internal/service/issue.go`: `IssueRepository` interface（**利用側で宣言**）、
+    `ListQuery{Q, Status, Page, PerPage}` → `ListResult{Issues, Total, Page, PerPage}`、
+    `TotalPages()` / `HasPrev()` / `HasNext()`。`DefaultPerPage = 5`（seed 7 件でページングを試せる値）
+  - `internal/web/view/model.go`: `NewIssue(domain.Issue) Issue` で ViewModel に変換。
+    **domain をそのまま template に渡さない**
+  - `issue_handler.go`: `listQuery(r)` で `q` / `status` / `page` を URL から読む
+- **設計メモ**
+  - **依存の向きは domain 一方向**。`IssueQuery` を service ではなく domain に置いたのは、
+    store が service を import せずにリポジトリを実装できるようにするため
+  - **時刻は RFC3339 の UTC 文字列で保存**（`TEXT`）。ドライバごとの日付変換の差異を踏まないうえ、
+    UTC 固定なら文字列のまま時系列ソートできる。表示直前に `.Local()` に戻す
+  - **SQLite は書き込みが直列**なので `SetMaxOpenConns(1)` + `busy_timeout`。
+    `database is locked` をアプリのエラーではなく `database/sql` の待ちに変換する
+  - **`LIKE` は `ESCAPE` を明示**。`%` `_` `\` をエスケープしないと `100%` の検索で全件返る
+  - `COUNT(*)` と `SELECT ... LIMIT` で **WHERE 句を共有**する（`issueWhere`）。
+    条件を足したときに片方だけ直してズレる事故を防ぐ
+- **完了条件**: 一覧が DB の中身で表示される（達成）。
+  検証済み: `?q=` の部分一致（title / body 両方）、`?status=` 絞り込み、`?page=2`、
+  不正な `status` は無視、`%` `_` `\` がワイルドカードとして効かないこと、範囲外ページは 0 件表示。
 
 ## Step 2: fragment 化 + 検索 + ステータスフィルタ ★HTMX 初体験
 
