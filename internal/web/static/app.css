@@ -1,0 +1,80 @@
+:root {
+  --bg: #f7f8fa;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --line: #d1d9e0;
+  --card: #ffffff;
+  --open: #1a7f37;
+  --closed: #8250df;
+  --accent: #0969da;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", sans-serif;
+}
+
+.site-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.site-sub { color: var(--muted); font-size: 13px; }
+
+.container {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 { font-size: 22px; margin: 0 0 16px; }
+
+.issue-list {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.issue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.issue-row:last-child { border-bottom: none; }
+
+.issue-title { flex: 1; font-weight: 500; }
+
+.issue-meta { color: var(--muted); font-size: 13px; }
+
+.badge {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-open { color: var(--open); }
+.badge-closed { color: var(--closed); }
+
+.empty { padding: 24px 16px; color: var(--muted); margin: 0; }

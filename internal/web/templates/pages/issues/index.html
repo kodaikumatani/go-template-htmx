@@ -1,0 +1,19 @@
+{{ define "content" }}
+<h1>Issues</h1>
+
+{{/* Step 2 でこの中身を partials/issues/list.html に切り出し、
+     #issue-list だけを HTMX で差し替えられるようにする。 */}}
+<div id="issue-list" class="issue-list">
+  {{ range .Issues }}
+    <div id="issue-{{ .ID }}" class="issue-row">
+      <span class="badge {{ if .IsOpen }}badge-open{{ else }}badge-closed{{ end }}">
+        {{ .StatusLabel }}
+      </span>
+      <span class="issue-title">{{ .Title }}</span>
+      <span class="issue-meta">{{ .CreatedAt }}</span>
+    </div>
+  {{ else }}
+    <p class="empty">No issues yet.</p>
+  {{ end }}
+</div>
+{{ end }}

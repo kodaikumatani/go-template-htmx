@@ -1,0 +1,21 @@
+{{ define "layout" }}<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="site-title" href="/issues">Issue Tracker</a>
+    <span class="site-sub">go template + htmx</span>
+  </header>
+
+  <main class="container">
+    {{ template "content" . }}
+  </main>
+</body>
+</html>
+{{ end }}
