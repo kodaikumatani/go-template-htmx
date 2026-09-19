@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 )
 
 // Issue は課題 1 件。DB はまだ使わず、メモリ上のスライスに持つ。
@@ -25,16 +26,18 @@ type indexData struct {
 	Issues []Issue
 }
 
-// filterIssues は status で絞り込む。status が空なら全件。
-func filterIssues(status string) []Issue {
-	if status == "" {
-		return issues
-	}
-	var out []Issue
+// filterIssues は status と検索語 q で絞り込む。どちらも空なら全件。
+func filterIssues(status, q string) []Issue {
+	out := []Issue{}
 	for _, i := range issues {
-		if i.Status == status {
-			out = append(out, i)
+		if status != "" && i.Status != status {
+			continue
 		}
+		// 大文字小文字を区別せずタイトルの部分一致を見る
+		if q != "" && !strings.Contains(strings.ToLower(i.Title), strings.ToLower(q)) {
+			continue
+		}
+		out = append(out, i)
 	}
 	return out
 }
@@ -54,7 +57,7 @@ func main() {
 
 	// ページ全体を返す
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		data := indexData{Title: "Issues", Issues: filterIssues("")}
+		data := indexData{Title: "Issues", Issues: filterIssues("", "")}
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -64,9 +67,10 @@ func main() {
 	// ExecuteTemplate で list.html だけを描くので、<html> や <head> は付かない。
 	mux.HandleFunc("GET /issues/list", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
-		data := indexData{Title: "Issues", Issues: filterIssues(status)}
+		q := r.URL.Query().Get("q")
+		data := indexData{Title: "Issues", Issues: filterIssues(status, q)}
 
-		log.Printf("fragment: status=%q -> %d 件", status, len(data.Issues))
+		log.Printf("fragment: q=%q status=%q -> %d 件", q, status, len(data.Issues))
 
 		if err := tmpl.ExecuteTemplate(w, "list.html", data); err != nil {
 			log.Print(err)
