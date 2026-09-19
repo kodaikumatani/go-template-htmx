@@ -1,0 +1,30 @@
+# このリポジトリで使うツールとタスク。
+# mise install で揃い、mise run <タスク名> で実行する。
+
+[tools]
+go = "1.27.1"
+air = "latest"   # ホットリロード。PATH は mise が通す
+
+[tasks.dev]
+description = "ホットリロードで起動（保存するたびに再ビルド）"
+run = "air"
+
+[tasks.run]
+description = "一度だけ起動する"
+run = "go run ./cmd/server"
+
+[tasks.build]
+description = "bin/server にビルドする"
+run = "go build -o bin/server ./cmd/server"
+
+[tasks.fmt]
+description = "gofmt をかける"
+run = "gofmt -l -w ."
+
+[tasks.vet]
+description = "go vet"
+run = "go vet ./..."
+
+[tasks.check]
+description = "fmt と vet をまとめて"
+depends = ["fmt", "vet"]
