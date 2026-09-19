@@ -8,51 +8,46 @@
 <body>
   <h1>{{ .Title }}</h1>
 
-  {{/* 行き先（#issue-list を outerHTML で置換）は 3 つのコントロールで共通なので、
+  {{/* 行き先（#issue-list を outerHTML で置換）は中のコントロール共通なので、
        親にまとめて :inherited で配る。htmx 4 は :inherited を付けたものだけが継承される。
-       hx-get のような動詞属性は継承できないので、各要素に書く。 */}}
+       hx-get のような動詞属性は継承できないので、各要素に書く。
+
+       TODO: 「送る値」も共通なので、ここに 1 つ属性を足す。
+
+         今の問題:
+           検索ボックスは自分の値（q）だけを送る。
+           select は自分の値（status）だけを送る。
+           → 片方を操作すると、もう片方の条件が消える。
+
+         直し方:
+           hx-include:inherited="#controls"
+           を下の div に足す。#controls の中にある入力欄がすべて送られるようになる。
+           （公式リファレンス: 入力欄でない要素を指定すると、その中の入力欄が全部入る）
+    */}}
   <div id="controls"
        hx-target:inherited="#issue-list"
-       hx-swap:inherited="outerHTML">
+       hx-swap:inherited="outerHTML"
+       hx-include:inherited="#controls">
 
-    {{/* TODO: この検索ボックスに htmx の属性を足す。
-
-         やりたいこと:
-           文字を打つ → 打ち終わって 300ms 後に GET /issues/list?q=... を送る
-                      → 返ってきた HTML で #issue-list を置き換える
-
-         足す属性:
-           hx-get     … 送り先。?q=... は付けなくてよい
-                        （name="q" が付いた入力欄の値は htmx が自動で送る）
-           hx-trigger … いつ送るか。今回は  input changed delay:300ms
-           hx-target  … ボタンと同じ → 親の :inherited に移動した
-           hx-swap    … ボタンと同じ → 親の :inherited に移動した
-
-         hx-trigger の中身:
+    {{/* hx-trigger の中身:
            input       … 入力のたびに発火するイベント名
            changed     … 値が実際に変わったときだけ（矢印キーなどを無視する）
-           delay:300ms … 300ms 打鍵が止まってから送る（デバウンス）
-    */}}
+           delay:300ms … 300ms 打鍵が止まってから送る（デバウンス） */}}
     <input type="search" name="q" placeholder="タイトルを検索..."
            hx-get="/issues/list"
            hx-trigger="input changed delay:300ms">
 
-    {{/* TODO: この 2 つのボタンに htmx の属性を足す。
+    {{/* TODO: この select に htmx の属性を 2 つ足す。
 
-         やりたいこと:
-           ボタンを押す → サーバに GET /issues/list?status=... を送る
-                        → 返ってきた HTML で <ul id="issue-list"> を丸ごと置き換える
+           hx-get     … 検索ボックスと同じ送り先
+           hx-trigger … select の場合は change（選び直したとき）
 
-         足す属性は 3 つ:
-           hx-get="送り先の URL"
-           hx-target="置き換える要素の CSS セレクタ"  → 親の :inherited に移動した
-           hx-swap="置き換え方"                      → 親の :inherited に移動した
-
-         hx-swap は今回 outerHTML を使う（対象の要素そのものを置き換える）。
-         innerHTML（既定値）だと中身だけ差し替わり、<ul> が二重になる。
-    */}}
-    <button hx-get="/issues/list?status=">すべて</button>
-    <button hx-get="/issues/list?status=open">Open のみ</button>
+         hx-target / hx-swap / hx-include は親から継承されるので書かない。 */}}
+    <select name="status" hx-get="/issues/list" hx-trigger="change">
+      <option value="">すべて</option>
+      <option value="open">Open</option>
+      <option value="closed">Closed</option>
+    </select>
   </div>
 
   {{ template "list.html" . }}
