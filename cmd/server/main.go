@@ -25,18 +25,50 @@ type indexData struct {
 	Issues []Issue
 }
 
+// filterIssues は status で絞り込む。status が空なら全件。
+func filterIssues(status string) []Issue {
+	if status == "" {
+		return issues
+	}
+	var out []Issue
+	for _, i := range issues {
+		if i.Status == status {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
 func main() {
 	mux := http.NewServeMux()
 
-	tmpl := template.Must(template.ParseFiles("internal/web/templates/index.html"))
+	// ファイルが 2 つになった。index.html の中から list.html を呼べる。
+	tmpl := template.Must(template.ParseFiles(
+		"internal/web/templates/index.html",
+		"internal/web/templates/list.html",
+	))
 
+	// htmx.min.js を配る。/static/htmx.min.js で参照できる。
+	mux.Handle("GET /static/", http.StripPrefix("/static/",
+		http.FileServer(http.Dir("internal/web/static"))))
+
+	// ページ全体を返す
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		data := indexData{
-			Title:  "Issues",
-			Issues: issues,
-		}
-
+		data := indexData{Title: "Issues", Issues: filterIssues("")}
 		if err := tmpl.Execute(w, data); err != nil {
+			log.Print(err)
+		}
+	})
+
+	// 一覧の部分だけを返す。htmx が呼ぶのはこちら。
+	// ExecuteTemplate で list.html だけを描くので、<html> や <head> は付かない。
+	mux.HandleFunc("GET /issues/list", func(w http.ResponseWriter, r *http.Request) {
+		status := r.URL.Query().Get("status")
+		data := indexData{Title: "Issues", Issues: filterIssues(status)}
+
+		log.Printf("fragment: status=%q -> %d 件", status, len(data.Issues))
+
+		if err := tmpl.ExecuteTemplate(w, "list.html", data); err != nil {
 			log.Print(err)
 		}
 	})

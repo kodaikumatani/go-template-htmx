@@ -1,0 +1,11 @@
+{{/* 一覧だけのテンプレート。
+     ページ初期表示では index.html から呼ばれ、
+     htmx からは GET /issues/list でこれ単体が返る。
+     どちらも同じ HTML になるのがポイント。 */}}
+<ul id="issue-list">
+  {{ range .Issues }}
+    <li>
+      {{ if eq .Status "closed" }}<s>{{ .Title }}</s>{{ else }}{{ .Title }}{{ end }}
+    </li>
+  {{ end }}
+</ul>

@@ -1,15 +1,37 @@
 <!doctype html>
 <html lang="ja">
-<head><meta charset="utf-8"><title>{{ .Title }}</title></head>
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Title }}</title>
+  <script src="/static/htmx.min.js"></script>
+</head>
 <body>
   <h1>{{ .Title }}</h1>
 
-  <ul>
-    {{ range .Issues }}
-      <li>
-        {{ if eq .Status "closed" }}<s>{{ .Title }}</s>{{ else }}{{ .Title }}{{ end }}
-      </li>
-    {{ end }}
-  </ul>
+  <p>
+    {{/* TODO: この 2 つのボタンに htmx の属性を足す。
+
+         やりたいこと:
+           ボタンを押す → サーバに GET /issues/list?status=... を送る
+                        → 返ってきた HTML で <ul id="issue-list"> を丸ごと置き換える
+
+         足す属性は 3 つ:
+           hx-get="送り先の URL"
+           hx-target="置き換える要素の CSS セレクタ"
+           hx-swap="置き換え方"
+
+         hx-swap は今回 outerHTML を使う（対象の要素そのものを置き換える）。
+         innerHTML（既定値）だと中身だけ差し替わり、<ul> が二重になる。
+    */}}
+    <button hx-get="/issues/list?status="
+            hx-target="#issue-list"
+            hx-swap="outerHTML">すべて</button>
+    <button hx-get="/issues/list?status=open"
+            hx-target="#issue-list"
+            hx-swap="outerHTML">Open のみ</button>
+  </p>
+
+  {{/* ページ初期表示の一覧。list.html の中身がここに展開される */}}
+  {{ template "list.html" . }}
 </body>
 </html>
