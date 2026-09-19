@@ -1,0 +1,8 @@
+{{/* 1 行分。一覧の初期表示でも、Step 4 以降の部分更新でもこれを使う。 */}}
+{{ define "issues/row" }}
+<div id="issue-{{ .ID }}" class="issue-row">
+  <span class="badge {{ if .IsOpen }}badge-open{{ else }}badge-closed{{ end }}">{{ .StatusLabel }}</span>
+  <span class="issue-title">{{ .Title }}</span>
+  <span class="issue-meta">{{ .CreatedAt }}</span>
+</div>
+{{ end }}

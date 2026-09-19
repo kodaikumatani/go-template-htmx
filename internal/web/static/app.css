@@ -90,3 +90,54 @@ h1 { font-size: 22px; margin: 0 0 16px; }
 .badge-closed { color: var(--closed); }
 
 .empty { padding: 24px 16px; color: var(--muted); margin: 0; }
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.filters input[type="search"] {
+  flex: 1;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  font: inherit;
+}
+
+.filters input[type="search"]:focus,
+.filters select:focus {
+  outline: 2px solid rgba(9, 105, 218, 0.35);
+  border-color: var(--accent);
+}
+
+.filters select {
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  font: inherit;
+}
+
+/* htmx-indicator は htmx が用意するクラス。
+   既定では非表示で、リクエスト中だけ .htmx-request が付いて表示される。 */
+.htmx-indicator {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.list-meta {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfd;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* リクエスト中の一覧を少し薄くする */
+.issue-list.htmx-request {
+  opacity: 0.55;
+  transition: opacity 120ms ease-out;
+}

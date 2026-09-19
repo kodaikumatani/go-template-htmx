@@ -10,11 +10,33 @@ import (
 // ViewModel は template に渡す専用の型。domain の型をそのまま渡さないことで、
 // 「整形と分岐は Go 側、template は組み立てだけ」という境界を保つ。
 
-// IssuesIndex is the ViewModel for GET /issues.
+// IssuesIndex is the ViewModel for GET /issues (ページ全体).
 type IssuesIndex struct {
 	Title  string
-	Total  int
+	Filter Filter
+	List   IssueList
+}
+
+// IssueList is the ViewModel for the #issue-list fragment.
+// ページ全体でも GET /issues/list でも、同じ型で同じ template を描く。
+type IssueList struct {
 	Issues []Issue
+	Total  int // 絞り込み後の総件数
+	Shown  int // このページに表示している件数
+}
+
+// Filter is the state of the search form. 値を持たせておかないと、
+// 部分更新後にリロードしたときに入力内容が消える。
+type Filter struct {
+	Q       string
+	Options []StatusOption
+}
+
+// StatusOption is one <option> of the status filter.
+type StatusOption struct {
+	Value    string
+	Label    string
+	Selected bool
 }
 
 // Issue is one row in the issue list.
@@ -49,12 +71,34 @@ func NewIssues(issues []domain.Issue) []Issue {
 	return out
 }
 
-// NewIssuesIndex builds the page ViewModel from a use case result.
-func NewIssuesIndex(res service.ListResult) IssuesIndex {
+// NewIssueList builds the fragment ViewModel.
+func NewIssueList(res service.ListResult) IssueList {
+	issues := NewIssues(res.Issues)
+	return IssueList{
+		Issues: issues,
+		Total:  res.Total,
+		Shown:  len(issues),
+	}
+}
+
+// NewIssuesIndex builds the page ViewModel.
+func NewIssuesIndex(q service.ListQuery, res service.ListResult) IssuesIndex {
 	return IssuesIndex{
 		Title:  "Issues",
-		Total:  res.Total,
-		Issues: NewIssues(res.Issues),
+		Filter: NewFilter(q),
+		List:   NewIssueList(res),
+	}
+}
+
+// NewFilter builds the search form state from the current query.
+func NewFilter(q service.ListQuery) Filter {
+	return Filter{
+		Q: q.Q,
+		Options: []StatusOption{
+			{Value: "", Label: "すべて", Selected: q.Status == ""},
+			{Value: string(domain.StatusOpen), Label: "Open", Selected: q.Status == domain.StatusOpen},
+			{Value: string(domain.StatusClosed), Label: "Closed", Selected: q.Status == domain.StatusClosed},
+		},
 	}
 }
 

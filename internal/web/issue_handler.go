@@ -19,12 +19,27 @@ type issueHandler struct {
 
 // index handles GET /issues and returns the whole page.
 func (h *issueHandler) index(w http.ResponseWriter, r *http.Request) {
+	q := h.listQuery(r)
+	res, err := h.issues.List(r.Context(), q)
+	if err != nil {
+		h.serverError(w, r, err)
+		return
+	}
+	h.view.Page(w, http.StatusOK, "issues/index", view.NewIssuesIndex(q, res))
+}
+
+// list handles GET /issues/list and returns only the #issue-list fragment.
+//
+// index との違いは「レイアウトを通すかどうか」だけで、
+// 一覧そのものは同じ issues/list template を描いている。
+// 同じ HTML を 2 箇所に書かないことが、この構成の一番のルール。
+func (h *issueHandler) list(w http.ResponseWriter, r *http.Request) {
 	res, err := h.issues.List(r.Context(), h.listQuery(r))
 	if err != nil {
 		h.serverError(w, r, err)
 		return
 	}
-	h.view.Page(w, http.StatusOK, "issues/index", view.NewIssuesIndex(res))
+	h.view.Partial(w, http.StatusOK, "issues/list", view.NewIssueList(res))
 }
 
 // listQuery reads the list parameters out of the URL.

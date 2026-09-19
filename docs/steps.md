@@ -176,30 +176,42 @@ http.Handler → service → repository(SQLite) → domain → ViewModel → htm
   検証済み: `?q=` の部分一致（title / body 両方）、`?status=` 絞り込み、`?page=2`、
   不正な `status` は無視、`%` `_` `\` がワイルドカードとして効かないこと、範囲外ページは 0 件表示。
 
-## Step 2: fragment 化 + 検索 + ステータスフィルタ ★HTMX 初体験
+## Step 2: fragment 化 + 検索 + ステータスフィルタ ✅ done ★htmx 初体験
 
 - **目的**: 「ページ全体」と「一部分」を同じ template から返す、を体験する。
-- やること
-  - `GET /issues/list` を追加。`issues/list` template だけ Execute して返す
-  - `issues/index.html` は `#issue-list` を持ち、初期表示は同じ `issues/list` を埋め込む（重複を作らない）
-  - 検索フォーム。`hx-target` を 2 箇所に書かないよう、親に `:inherited` で持たせる（**v4 の書き方**）:
+- やったこと
+  - `partials/issues/row.html`（`issues/row`）と `partials/issues/list.html`（`issues/list`）を切り出し。
+    `issues/list` は **`<div id="issue-list">` ごと**返すので `hx-swap="outerHTML"` で丸ごと差し替わる
+  - `GET /issues/list` を追加（`issue_handler.list`）。`Partial()` で layout を通さず fragment だけ返す
+  - `index.html` は `{{ template "issues/list" .List }}` を呼ぶだけ。
+    **初期表示と部分更新でまったく同じ template を使う**
+  - ViewModel を分割: `IssueList{Issues, Total, Shown}`（fragment 用）と
+    `IssuesIndex{Title, Filter, List}`（ページ用）。`Filter` が検索文字列と select の選択状態を持つ
+  - 検索フォーム:
     ```html
-    <div id="filters" hx-target:inherited="#issue-list" hx-indicator:inherited="#list-spinner">
-      <input type="search" name="q"
-             hx-get="/issues/list"
-             hx-trigger="input changed delay:300ms, keyup[key=='Enter']"
-             hx-include="#filters">
-      <select name="status" hx-get="/issues/list" hx-trigger="change" hx-include="#filters">
-        ...
-      </select>
-    </div>
-    <span id="list-spinner" class="htmx-indicator">Searching...</span>
+    <form id="filters"
+          hx-get="/issues/list"
+          hx-target:inherited="#issue-list"
+          hx-swap:inherited="outerHTML"
+          hx-include:inherited="#filters"
+          hx-indicator:inherited="#list-indicator">
+      <input type="search" name="q" hx-get="/issues/list"
+             hx-trigger="input changed delay:300ms">
+      <select name="status" hx-get="/issues/list" hx-trigger="change">...</select>
+      <span id="list-indicator" class="htmx-indicator">検索中...</span>
+    </form>
     ```
-  - `input changed delay:300ms` が debounce 本体。`changed` があるので矢印キーなど値が変わらない打鍵は飛ばない
-  - `hx-include="#filters"` で「q と status を常に両方送る」。どちらを触っても同じクエリが飛ぶ
-- **学ぶこと**: debounce / fetch / state 更新が属性数行で終わる。JSON も useState も出てこない。
-  併せて **v4 の明示的継承**を最初に体験しておく（2.x の記事をコピペすると `hx-target` が効かない理由がこれ）
-- **完了条件**: 打つたびに一覧だけが差し替わる。ターミナルのログに `htmx=true path=/issues/list?...` が並ぶ。
+- **落とし穴（実際に踏んだ）**: **`hx-get` などの動詞属性は継承されない**。
+  `hx-get:inherited` を親に書いても子はリクエストを飛ばさない（htmx 2 でも `hx-get` は継承対象外だった）。
+  `:inherited` が効くのは `hx-target` / `hx-swap` / `hx-include` / `hx-indicator` / `hx-confirm` のような
+  **修飾属性**だけ。動詞はリクエストを起こす要素それぞれに書く。
+  - なお `:inherited` は**宣言した要素自身にも効く**（htmx の実装が自分の属性を先に見るため）。
+    だから form 自身の submit（Enter キー）も同じ target / swap で飛ぶ
+- **`hx-include="#filters"`** で q と status を常に両方送る。どちらを操作しても同じクエリになる
+- **完了条件**: 打つたびに一覧だけが差し替わる（達成）。ヘッドレス Chrome で実際に確認:
+  - 検索欄に「遅い」→ `GET /issues/list?q=遅い&status=` → `1 件中 1 件を表示`
+  - select で Closed → `GET /issues/list?status=closed&q=` → `2 件中 2 件を表示`
+  - サーバログに `htmx=true` が出る（`HX-Request` ヘッダ）
 
 ## Step 3: 作成（POST → row を返す）
 

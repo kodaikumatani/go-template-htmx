@@ -1,20 +1,33 @@
 {{ define "content" }}
-{{/* #issue-count は Step 3 で hx-swap-oob の的にする。 */}}
-<h1>Issues <span id="issue-count" class="count">{{ .Total }}</span></h1>
+<h1>Issues</h1>
 
-{{/* Step 2 でこの中身を partials/issues/list.html に切り出し、
-     #issue-list だけを HTMX で差し替えられるようにする。 */}}
-<div id="issue-list" class="issue-list">
-  {{ range .Issues }}
-    <div id="issue-{{ .ID }}" class="issue-row">
-      <span class="badge {{ if .IsOpen }}badge-open{{ else }}badge-closed{{ end }}">
-        {{ .StatusLabel }}
-      </span>
-      <span class="issue-title">{{ .Title }}</span>
-      <span class="issue-meta">{{ .CreatedAt }}</span>
-    </div>
-  {{ else }}
-    <p class="empty">No issues yet.</p>
-  {{ end }}
-</div>
+{{/* 共通の「どこに・どう差し込むか」は form にまとめて :inherited で子に配る。
+     htmx 4 は明示的に :inherited を付けたものだけが継承される（2.x は自動だった）。
+     ただし hx-get のような動詞属性は継承対象外なので、
+     リクエストを起こす要素それぞれに書く必要がある。 */}}
+<form id="filters" class="filters"
+      hx-get="/issues/list"
+      hx-target:inherited="#issue-list"
+      hx-swap:inherited="outerHTML"
+      hx-include:inherited="#filters"
+      hx-indicator:inherited="#list-indicator">
+
+  {{/* input changed delay:300ms = デバウンス。値が変わらない打鍵（矢印キー等）は飛ばさない。 */}}
+  <input type="search" name="q" value="{{ .Filter.Q }}"
+         placeholder="タイトル・本文を検索..."
+         hx-get="/issues/list"
+         hx-trigger="input changed delay:300ms">
+
+  <select name="status"
+          hx-get="/issues/list"
+          hx-trigger="change">
+    {{ range .Filter.Options }}
+      <option value="{{ .Value }}"{{ if .Selected }} selected{{ end }}>{{ .Label }}</option>
+    {{ end }}
+  </select>
+
+  <span id="list-indicator" class="htmx-indicator">検索中...</span>
+</form>
+
+{{ template "issues/list" .List }}
 {{ end }}

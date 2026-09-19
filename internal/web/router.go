@@ -49,6 +49,7 @@ func NewHandler(logger *slog.Logger, issueService *service.IssueService) (http.H
 		http.Redirect(w, r, "/issues", http.StatusFound)
 	})
 	mux.HandleFunc("GET /issues", issues.index)
+	mux.HandleFunc("GET /issues/list", issues.list)
 
 	return requestLogger(logger, mux), nil
 }
