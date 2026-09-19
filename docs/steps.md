@@ -213,32 +213,36 @@ http.Handler → service → repository(SQLite) → domain → ViewModel → htm
   - select で Closed → `GET /issues/list?status=closed&q=` → `2 件中 2 件を表示`
   - サーバログに `htmx=true` が出る（`HX-Request` ヘッダ）
 
-## Step 3: 作成（POST → row を返す）
+## Step 3: 作成（POST → row を返す）✅ done
 
-- **目的**: 「作ったものの HTML を返す」パターンとバリデーションエラー。
-- やること
-  - `POST /issues` → 成功時は `issues/row` を 1 件だけ返す:
-    ```html
-    <form hx-post="/issues"
-          hx-target="#issue-list" hx-swap="afterbegin"
-          hx-status:422="target:this swap:outerHTML"
-          hx-on:htmx:after:request="this.reset()">
-    ```
-  - 送信後のフォームクリアは `hx-on:htmx:after:request="this.reset()"`
-    （**v4 でイベント名が `htmx:after:request` に変わった**。2.x の `hx-on::after-request` は動かない）
-  - バリデーションエラー時は **422 + フォーム fragment（エラーメッセージ入り）** を返す。
-    v4 は 4xx/5xx も swap するので、素直に「エラー時はフォームを返す」で成立する。
-    ただし成功時の target（`#issue-list` に追加）とは行き先が違うので、
-    `hx-status:422="target:this swap:outerHTML"` で 422 のときだけフォーム自身を置き換える
-  - Out of Band swap で件数バッジを同時更新:
-    ```html
-    <span id="issue-count" hx-swap-oob="true">{{ .Total }} issues</span>
-    ```
-    **v4 では本体 → OOB の順**に swap される（2.x は逆）。OOB が作った DOM を本体が前提にする書き方は避ける
-- **学ぶこと**: 「1 レスポンスで複数箇所を更新する」の 2 つの流派。`hx-swap-oob`（返す HTML 側に印を付ける）と、
-  v4 で追加された `<hx-partial hx-target="#count">`（レスポンスをターゲット単位で包む）。両方書いて比べる
-- **完了条件**: リロードなしで先頭に行が増え、件数も同時に更新される。空タイトルで送ると
-  フォームがエラー付きに差し替わる。
+- **目的**: 「作ったものの HTML を返す」パターンと、1 レスポンスで複数箇所を更新する方法。
+- やったこと
+  - `POST /issues`。成功時のレスポンスは `partials/issues/created.html` で、中身は 3 つ:
+
+    | 部分 | 行き先 | 決めているもの |
+    | --- | --- | --- |
+    | `issues/row` | `#issue-rows` の先頭 | フォームの `hx-target` / `hx-swap="afterbegin"` |
+    | `issues/meta` | `#list-meta` | レスポンス側の `hx-swap-oob="true"` |
+    | `issues/new-form` | `#new-issue` | レスポンス側の `hx-swap-oob="true"` |
+
+  - **フォームのクリアに JavaScript を使わない**。空のフォームを OOB で返せば入力欄が消える。
+    `hx-on:htmx:after:request="this.reset()"` を書く方法もあるが、
+    「状態はサーバが返す HTML」という原則に合うのは OOB の方
+  - バリデーション: `domain.ValidateTitle`（必須・120 文字以内）。
+    エラー時は **422 + エラー入りフォーム**を返し、フォーム側の
+    `hx-status:422="target:#new-issue swap:outerHTML"` が行き先を変える。
+    htmx 4 は 4xx も swap するので、これだけで成立する（2.x では設定が必要だった）
+  - `hx-include="#filters"` で絞り込み条件も一緒に送り、件数を数え直して OOB で返す
+  - `listQuery` は `r.ParseForm()` 後の `r.Form` を読むように変更。
+    これで GET のクエリ文字列と POST のボディを同じコードで扱える
+  - `#issue-list` の内側に `#issue-rows` を作った。`afterbegin` の挿入先を
+    件数表示の下にするため
+- **完了条件**: リロードなしで先頭に行が増え、件数も同時に更新される（達成）。
+  ヘッドレス Chrome で確認:
+  - 正常: `POST /issues` → 200、先頭に行が増え、`#list-meta` が `8 件` に、入力欄が空に
+  - 空タイトル: `POST /issues` → 422、フォームがエラー付きに差し替わり、**行は増えない**
+- **既知の割り切り**: 絞り込み中に作成しても、その条件に合うかどうかに関わらず行が先頭に入る。
+  厳密にやるならサーバ側で「条件に一致するときだけ row を返す」判定が要る。
 
 ## Step 4: インライン編集（フォーム差し替え → 保存で row に戻す）
 

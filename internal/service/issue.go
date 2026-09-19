@@ -4,6 +4,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/kodaikumatani/go-template-htmx/internal/domain"
 )
@@ -15,6 +17,8 @@ import (
 // Step が進むごとにここにメソッドが増えていく。
 type IssueRepository interface {
 	List(ctx context.Context, q domain.IssueQuery) (issues []domain.Issue, total int, err error)
+	Count(ctx context.Context, q domain.IssueQuery) (int, error)
+	Create(ctx context.Context, issue domain.Issue) (domain.Issue, error)
 }
 
 // ListQuery is the input of the issue list use case.
@@ -93,4 +97,34 @@ func (s *IssueService) List(ctx context.Context, q ListQuery) (ListResult, error
 		Page:    q.Page,
 		PerPage: q.PerPage,
 	}, nil
+}
+
+// Count returns how many issues match the filter.
+// 作成後に件数表示だけを更新したいときに使う。
+func (s *IssueService) Count(ctx context.Context, q ListQuery) (int, error) {
+	total, err := s.repo.Count(ctx, domain.IssueQuery{Q: q.Q, Status: q.Status})
+	if err != nil {
+		return 0, fmt.Errorf("count issues: %w", err)
+	}
+	return total, nil
+}
+
+// Create validates the input and stores a new open issue.
+func (s *IssueService) Create(ctx context.Context, title string) (domain.Issue, error) {
+	title = strings.TrimSpace(title)
+	if err := domain.ValidateTitle(title); err != nil {
+		return domain.Issue{}, err
+	}
+
+	now := time.Now()
+	issue, err := s.repo.Create(ctx, domain.Issue{
+		Title:     title,
+		Status:    domain.StatusOpen,
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		return domain.Issue{}, fmt.Errorf("create issue: %w", err)
+	}
+	return issue, nil
 }

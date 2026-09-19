@@ -1,0 +1,13 @@
+{{/* POST /issues の成功レスポンス。
+     1 レスポンスに 3 つの要素が入っている。
+
+       issues/row   … 主役。hx-target="#issue-rows" hx-swap="afterbegin" で先頭に挿入
+       issues/meta  … hx-swap-oob="true" 付き。id で #list-meta を探して差し替え
+       new-form     … hx-swap-oob="true" 付き。空のフォームに差し替え = 入力欄クリア
+
+     htmx 4 では「主役 → OOB」の順に swap される（2.x は逆だった）。 */}}
+{{ define "issues/created" }}
+{{ template "issues/row" .Row }}
+{{ template "issues/meta" .Meta }}
+{{ template "issues/new-form" .Form }}
+{{ end }}

@@ -54,6 +54,33 @@ func (s *IssueStore) List(ctx context.Context, q domain.IssueQuery) ([]domain.Is
 	return issues, total, nil
 }
 
+// Count returns the number of issues matching the query.
+func (s *IssueStore) Count(ctx context.Context, q domain.IssueQuery) (int, error) {
+	where, args := issueWhere(q)
+	var total int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM issues WHERE "+where, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count issues: %w", err)
+	}
+	return total, nil
+}
+
+// Create inserts an issue and returns it with the generated id.
+func (s *IssueStore) Create(ctx context.Context, issue domain.Issue) (domain.Issue, error) {
+	at := formatTime(issue.CreatedAt)
+	res, err := s.db.ExecContext(ctx,
+		"INSERT INTO issues (title, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+		issue.Title, issue.Body, string(issue.Status), at, at)
+	if err != nil {
+		return domain.Issue{}, fmt.Errorf("insert issue: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return domain.Issue{}, fmt.Errorf("last insert id: %w", err)
+	}
+	issue.ID = id
+	return issue, nil
+}
+
 // issueWhere builds the shared WHERE clause. 条件が増えても
 // COUNT 側と SELECT 側でズレないよう、1 箇所で組み立てる。
 func issueWhere(q domain.IssueQuery) (string, []any) {

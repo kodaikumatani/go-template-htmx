@@ -1,0 +1,7 @@
+{{/* 件数表示。POST /issues のレスポンスでは OOB=true になり、
+     hx-swap-oob="true" が付いて「主役ではないが同時に差し替える要素」になる。 */}}
+{{ define "issues/meta" }}
+<div id="list-meta" class="list-meta"{{ if .OOB }} hx-swap-oob="true"{{ end }}>
+  {{ if .Total }}{{ .Total }} 件{{ else }}該当する Issue はありません{{ end }}
+</div>
+{{ end }}

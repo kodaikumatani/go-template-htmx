@@ -5,6 +5,7 @@ package domain
 import (
 	"errors"
 	"time"
+	"unicode/utf8"
 )
 
 // Status is the state of an issue.
@@ -51,3 +52,24 @@ type IssueQuery struct {
 
 // ErrNotFound is returned when an issue does not exist.
 var ErrNotFound = errors.New("issue not found")
+
+// 入力エラー。handler はこれを見て 422 とフォームの再描画に振り分ける。
+var (
+	ErrTitleRequired = errors.New("title is required")
+	ErrTitleTooLong  = errors.New("title is too long")
+)
+
+// MaxTitleLen is the maximum number of characters in a title.
+const MaxTitleLen = 120
+
+// ValidateTitle checks a title. 文字数は byte ではなく rune で数える。
+func ValidateTitle(title string) error {
+	switch {
+	case title == "":
+		return ErrTitleRequired
+	case utf8.RuneCountInString(title) > MaxTitleLen:
+		return ErrTitleTooLong
+	default:
+		return nil
+	}
+}

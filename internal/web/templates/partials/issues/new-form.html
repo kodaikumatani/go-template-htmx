@@ -1,0 +1,19 @@
+{{/* 新規作成フォーム。3 つの場面で使い回す。
+     1. ページ初期表示           OOB=false
+     2. POST 成功時のレスポンス   OOB=true  → 空のフォームに置き換わる（= 入力欄のクリア）
+     3. POST 失敗時のレスポンス   OOB=false → hx-status:422 でこのフォーム自身を置き換える */}}
+{{ define "issues/new-form" }}
+<form id="new-issue" class="new-issue"
+      hx-post="/issues"
+      hx-target="#issue-rows"
+      hx-swap="afterbegin"
+      hx-include="#filters"
+      hx-status:422="target:#new-issue swap:outerHTML"
+      {{- if .OOB }} hx-swap-oob="true"{{ end }}>
+  <input type="text" name="title" value="{{ .Title }}"
+         placeholder="新しい Issue のタイトル" autocomplete="off"
+         {{- if .Error }} aria-invalid="true"{{ end }}>
+  <button type="submit">追加</button>
+  {{ if .Error }}<p class="field-error">{{ .Error }}</p>{{ end }}
+</form>
+{{ end }}

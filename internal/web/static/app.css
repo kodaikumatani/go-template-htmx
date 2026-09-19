@@ -141,3 +141,50 @@ h1 { font-size: 22px; margin: 0 0 16px; }
   opacity: 0.55;
   transition: opacity 120ms ease-out;
 }
+
+.new-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.new-issue input[type="text"] {
+  flex: 1;
+  min-width: 220px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.new-issue input[aria-invalid="true"] { border-color: #d1242f; }
+
+.new-issue button {
+  padding: 7px 16px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--open);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-issue button:hover { filter: brightness(1.08); }
+
+.field-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #d1242f;
+  font-size: 13px;
+}
+
+/* 追加された行を一瞬ハイライトする。htmx が swap 後に付ける htmx-added を使う */
+.issue-row.htmx-added { background: #ddf4e4; }
+.issue-row { transition: background 600ms ease-out; }

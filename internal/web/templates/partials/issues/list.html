@@ -1,13 +1,12 @@
-{{/* 一覧まるごと。#issue-list という「置き換え先」ごと返すので、
-     hx-swap="outerHTML" で丸ごと差し替わる。
-     初期表示（pages/issues/index.html）と部分更新（GET /issues/list）で同じものを使う。 */}}
+{{/* 一覧まるごと。#issue-list ごと返すので hx-swap="outerHTML" で丸ごと差し替わる。
+     行の追加先は内側の #issue-rows（件数表示の下に入れたいため）。 */}}
 {{ define "issues/list" }}
 <div id="issue-list" class="issue-list">
-  <div class="list-meta">
-    {{ if .Total }}{{ .Total }} 件中 {{ .Shown }} 件を表示{{ else }}該当する Issue はありません{{ end }}
+  {{ template "issues/meta" .Meta }}
+  <div id="issue-rows">
+    {{ range .Issues }}
+      {{ template "issues/row" . }}
+    {{ end }}
   </div>
-  {{ range .Issues }}
-    {{ template "issues/row" . }}
-  {{ end }}
 </div>
 {{ end }}

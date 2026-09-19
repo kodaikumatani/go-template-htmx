@@ -50,6 +50,7 @@ func NewHandler(logger *slog.Logger, issueService *service.IssueService) (http.H
 	})
 	mux.HandleFunc("GET /issues", issues.index)
 	mux.HandleFunc("GET /issues/list", issues.list)
+	mux.HandleFunc("POST /issues", issues.create)
 
 	return requestLogger(logger, mux), nil
 }

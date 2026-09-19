@@ -14,15 +14,39 @@ import (
 type IssuesIndex struct {
 	Title  string
 	Filter Filter
+	Form   NewIssueForm
 	List   IssueList
 }
 
 // IssueList is the ViewModel for the #issue-list fragment.
 // ページ全体でも GET /issues/list でも、同じ型で同じ template を描く。
 type IssueList struct {
+	Meta   Meta
 	Issues []Issue
-	Total  int // 絞り込み後の総件数
-	Shown  int // このページに表示している件数
+}
+
+// Meta is the count line above the rows.
+//
+// OOB が true のとき hx-swap-oob="true" が付き、
+// 「レスポンスの主役ではないが、ついでに差し替えたい要素」になる。
+type Meta struct {
+	Total int
+	OOB   bool
+}
+
+// NewIssueForm is the state of the create form.
+type NewIssueForm struct {
+	Title string
+	Error string
+	OOB   bool
+}
+
+// IssueCreated is the response of POST /issues.
+// 1 レスポンスで「行の追加」「件数の更新」「フォームのクリア」を同時に行う。
+type IssueCreated struct {
+	Row  Issue
+	Meta Meta
+	Form NewIssueForm
 }
 
 // Filter is the state of the search form. 値を持たせておかないと、
@@ -73,11 +97,9 @@ func NewIssues(issues []domain.Issue) []Issue {
 
 // NewIssueList builds the fragment ViewModel.
 func NewIssueList(res service.ListResult) IssueList {
-	issues := NewIssues(res.Issues)
 	return IssueList{
-		Issues: issues,
-		Total:  res.Total,
-		Shown:  len(issues),
+		Meta:   Meta{Total: res.Total},
+		Issues: NewIssues(res.Issues),
 	}
 }
 

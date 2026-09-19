@@ -29,5 +29,7 @@
   <span id="list-indicator" class="htmx-indicator">検索中...</span>
 </form>
 
+{{ template "issues/new-form" .Form }}
+
 {{ template "issues/list" .List }}
 {{ end }}
