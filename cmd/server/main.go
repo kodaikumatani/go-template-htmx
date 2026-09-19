@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // Issue は課題 1 件。DB はまだ使わず、メモリ上のスライスに持つ。
@@ -13,6 +14,12 @@ type Issue struct {
 	Title  string
 	Status string // "open" または "closed"
 }
+
+// issues はメモリ上のデータ。複数のリクエストが同時に触るので mutex で守る。
+var (
+	mu     sync.Mutex
+	nextID = 4
+)
 
 var issues = []Issue{
 	{ID: 1, Title: "検索が遅い", Status: "open"},
@@ -49,6 +56,8 @@ func main() {
 	tmpl := template.Must(template.ParseFiles(
 		"internal/web/templates/index.html",
 		"internal/web/templates/list.html",
+		"internal/web/templates/row.html",
+		"internal/web/templates/new-form.html",
 	))
 
 	// htmx.min.js を配る。/static/htmx.min.js で参照できる。
@@ -73,6 +82,36 @@ func main() {
 		log.Printf("fragment: q=%q status=%q -> %d 件", q, status, len(data.Issues))
 
 		if err := tmpl.ExecuteTemplate(w, "list.html", data); err != nil {
+			log.Print(err)
+		}
+	})
+
+	// 新しい Issue を作る。返すのは「作った 1 行」だけ。
+	mux.HandleFunc("POST /issues", func(w http.ResponseWriter, r *http.Request) {
+		title := strings.TrimSpace(r.FormValue("title"))
+		if title == "" {
+			// 204 No Content を返すと htmx は swap しない（= 何も起きない）。
+			// 入力が空のときはこれで十分。
+			log.Print("create: 空のタイトルなので無視")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		mu.Lock()
+		issue := Issue{ID: nextID, Title: title, Status: "open"}
+		nextID++
+		issues = append([]Issue{issue}, issues...) // 先頭に足す
+		mu.Unlock()
+
+		log.Printf("create: %+v", issue)
+
+		// レスポンスに 2 つ入れる。
+		//   1. 作った行           → hx-target/hx-swap の指定どおり一覧の先頭へ
+		//   2. 空の作成フォーム    → hx-swap-oob="true" が付いているので id で置き換わる
+		if err := tmpl.ExecuteTemplate(w, "row.html", issue); err != nil {
+			log.Print(err)
+		}
+		if err := tmpl.ExecuteTemplate(w, "new-form.html", true); err != nil {
 			log.Print(err)
 		}
 	})

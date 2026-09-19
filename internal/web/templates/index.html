@@ -50,6 +50,9 @@
     </select>
   </div>
 
+  {{/* 初期表示では OOB なしで描く（引数の false がテンプレート内の . になる） */}}
+  {{ template "new-form.html" false }}
+
   {{ template "list.html" . }}
 </body>
 </html>

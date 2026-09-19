@@ -1,0 +1,23 @@
+{{/* 新規作成フォーム。2 通りに使う。
+       1. ページ初期表示           → {{ template "new-form.html" false }}
+       2. 追加成功時のレスポンス     → {{ template "new-form.html" true }}
+
+     このテンプレートに渡す . は bool 1 個だけ。true のときだけ
+     hx-swap-oob="true" が付く。
+
+     TODO: 下の <form> タグの中に、この 1 行を足す。
+
+         {{ if . }}hx-swap-oob="true"{{ end }}
+
+     これが付いた要素が入ったレスポンスを受け取ると、htmx は
+     「hx-target が指す場所」ではなく「同じ id を持つ既存の要素」を探して
+     そこを置き換える。つまり中身が空のフォームで既存のフォームを上書きする
+     ＝ 入力欄がクリアされる。 */}}
+<form id="new-issue"
+      hx-post="/issues"
+      hx-target="#issue-list"
+      hx-swap="afterbegin"
+      {{ if . }}hx-swap-oob="true"{{ end }}>
+  <input type="text" name="title" placeholder="新しい Issue のタイトル" autocomplete="off">
+  <button type="submit">追加</button>
+</form>
