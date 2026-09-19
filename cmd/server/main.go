@@ -1,15 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
+	"log"
 	"net/http"
 )
 
 func main() {
 	mux := http.NewServeMux()
 
+	tmpl := template.Must(template.ParseFiles("internal/web/templates/index.html"))
+
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "Hello World!!")
+		data := map[string]string{"Title": "Hello World!!"}
+
+		if err := tmpl.Execute(w, data); err != nil {
+			log.Print(err)
+		}
 	})
 
 	http.ListenAndServe(":8080", mux)
