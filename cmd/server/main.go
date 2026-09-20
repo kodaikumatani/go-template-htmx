@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,6 +33,10 @@ var issues = []Issue{
 type indexData struct {
 	Title  string
 	Issues []Issue
+	// 現在の絞り込み条件。入力欄と select の初期値に使う。
+	// これが無いと、URL に条件を載せてもリロード時に画面へ復元できない。
+	Q      string
+	Status string
 }
 
 // filterIssues は status と検索語 q で絞り込む。どちらも空なら全件。
@@ -120,9 +125,18 @@ func main() {
 	mux.Handle("GET /static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("internal/web/static"))))
 
-	// ページ全体を返す
+	// ページ全体を返す。URL のクエリを読んで初期状態に反映する。
+	// これがあるので、?q=... 付きの URL をリロードしても同じ画面が出る。
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		data := indexData{Title: "Issues", Issues: filterIssues("", "")}
+		q := r.URL.Query().Get("q")
+		status := r.URL.Query().Get("status")
+
+		data := indexData{
+			Title:  "Issues",
+			Issues: filterIssues(status, q),
+			Q:      q,
+			Status: status,
+		}
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Print(err)
 		}
@@ -133,9 +147,21 @@ func main() {
 	mux.HandleFunc("GET /issues/list", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 		q := r.URL.Query().Get("q")
-		data := indexData{Title: "Issues", Issues: filterIssues(status, q)}
+		data := indexData{Title: "Issues", Issues: filterIssues(status, q), Q: q, Status: status}
 
 		log.Printf("fragment: q=%q status=%q -> %d 件", q, status, len(data.Issues))
+
+		// アドレスバーに載せる URL をレスポンスヘッダで指示する。
+		// リクエスト先は /issues/list（fragment）だが、アドレスバーに入れたいのは
+		// ページの URL なので、両者を分ける必要がある。
+		// hx-push-url="true" と書くとリクエスト先がそのまま入ってしまい、
+		// リロードしたときに <ul> だけの裸の HTML が表示されてしまう。
+		//
+		// ヘッダはボディを書く前に設定する（書き始めると送信済みになるため）。
+		params := url.Values{}
+		params.Set("q", q)
+		params.Set("status", status)
+		w.Header().Set("HX-Push-Url", "/?"+params.Encode())
 
 		if err := tmpl.ExecuteTemplate(w, "list.html", data); err != nil {
 			log.Print(err)

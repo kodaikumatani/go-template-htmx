@@ -33,20 +33,16 @@
            input       … 入力のたびに発火するイベント名
            changed     … 値が実際に変わったときだけ（矢印キーなどを無視する）
            delay:300ms … 300ms 打鍵が止まってから送る（デバウンス） */}}
-    <input type="search" name="q" placeholder="タイトルを検索..."
+    <input type="search" name="q" value="{{ .Q }}" placeholder="タイトルを検索..."
            hx-get="/issues/list"
            hx-trigger="input changed delay:300ms">
 
-    {{/* TODO: この select に htmx の属性を 2 つ足す。
-
-           hx-get     … 検索ボックスと同じ送り先
-           hx-trigger … select の場合は change（選び直したとき）
-
-         hx-target / hx-swap / hx-include は親から継承されるので書かない。 */}}
+    {{/* selected を付けないと、?status=open 付きの URL をリロードしたとき、
+         一覧は絞り込まれているのに select だけ「すべて」に見えてしまう。 */}}
     <select name="status" hx-get="/issues/list" hx-trigger="change">
-      <option value="">すべて</option>
-      <option value="open">Open</option>
-      <option value="closed">Closed</option>
+      <option value=""       {{ if eq .Status ""       }}selected{{ end }}>すべて</option>
+      <option value="open"   {{ if eq .Status "open"   }}selected{{ end }}>Open</option>
+      <option value="closed" {{ if eq .Status "closed" }}selected{{ end }}>Closed</option>
     </select>
   </div>
 
