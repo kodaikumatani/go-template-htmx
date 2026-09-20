@@ -72,10 +72,8 @@ func target(id int) string {
 }
 
 // partial は WebSocket で送る HTML を組み立てる。
-//
-// <hx-partial> は htmx 4 で入ったタグで、1 つのレスポンス（やメッセージ）の中で
-// 「どこに・どう入れるか」を要素ごとに指定できる。WebSocket には hx-target のような
-// リクエスト側の指定が無いので、送る HTML 自身に行き先を持たせる。
+// WebSocket のメッセージには hx-target を指定するリクエスト側の要素が無いので、
+// <hx-partial> で送る HTML 自身に行き先を持たせる。
 func partial(tmpl *template.Template, target, swap, name string, data any) string {
 	var body bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&body, name, data); err != nil {
@@ -144,7 +142,7 @@ func main() {
 	mux.Handle("GET /static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("internal/web/static"))))
 
-	// 接続時に現在の一覧を送る。裏のタブが再接続したときに追いつける。
+	// 接続時に現在の一覧を送る（再接続したタブを追いつかせる）。
 	h := newHub(func() string {
 		mu.Lock()
 		data := indexData{Issues: append([]Issue(nil), issues...)}
@@ -208,8 +206,7 @@ func main() {
 
 		log.Printf("create: %+v", issue)
 
-		// 作った行は WebSocket で全員に配る（自分も含む）。
-		// HTTP のレスポンスで返すのは、自分の入力欄をクリアする空フォームだけ。
+		// 行は WebSocket で全員に配る（自分も含む）。HTTP で返すのは空フォームだけ。
 		h.broadcast(partial(tmpl, "#issue-list", "afterbegin", "row.html", issue))
 		if err := tmpl.ExecuteTemplate(w, "new-form.html", true); err != nil {
 			log.Print(err)
@@ -258,7 +255,7 @@ func main() {
 		}
 		log.Printf("update: %+v", issue)
 
-		// 更新後の行も WebSocket 経由。204 を返して HTTP 側では swap させない。
+		// 更新後の行も WebSocket 経由。204 なので HTTP 側では swap されない。
 		h.broadcast(partial(tmpl, target(issue.ID), "outerHTML", "row.html", issue))
 		w.WriteHeader(http.StatusNoContent)
 	})

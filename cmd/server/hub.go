@@ -10,16 +10,12 @@ import (
 	"github.com/coder/websocket"
 )
 
-// hub は接続中のブラウザをまとめて持ち、HTML の断片を全員に配る。
-//
-// 1 接続 = 1 チャネル。書き込みが詰まった接続は切り捨てる（遅い相手に全体を
-// 引きずられないようにするため）。
+// hub は接続中のブラウザに HTML の断片を配る。1 接続 = 1 チャネル。
 type hub struct {
 	mu      sync.Mutex
 	clients map[chan string]struct{}
 
-	// snapshot は接続直後に送る HTML を返す。現在の一覧を丸ごと渡して
-	// 「いま何が正しいか」を伝える。
+	// snapshot は接続直後に送る HTML を返す。
 	snapshot func() string
 }
 
@@ -48,24 +44,23 @@ func (h *hub) remove(ch chan string) {
 	log.Printf("ws: 切断 (%d 台)", n)
 }
 
-// broadcast は全接続に HTML を送る。
+// broadcast は全接続に HTML を送る。詰まっている接続は飛ばす。
 func (h *hub) broadcast(html string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for ch := range h.clients {
 		select {
 		case ch <- html:
-		default: // 詰まっている接続は飛ばす
+		default:
 		}
 	}
 }
 
-// serveWS は 1 接続を処理する。ブラウザからは何も受け取らず、送るだけ。
+// serveWS は 1 接続を処理する。受信はせず、送るだけ。
 //
-// 接続直後に最新の一覧を送る。htmx は画面が隠れている間 WebSocket を切るので
-// （ws.pauseOnBackground の既定が true）、裏にいる間の変更は届かない。
-// 再接続のたびに現在の状態を送り直すことで追いつかせる。通信断やスリープからの
-// 復帰でも同じ経路で回復する。
+// 接続直後に snapshot を送るのが重要。htmx はタブが隠れている間 WebSocket を切る
+// （ws.pauseOnBackground の既定が true）ため、その間の変更は届かない。
+// 再接続のたびに現在の状態を送り直して追いつかせる。通信断やスリープでも同じ。
 func (h *hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
@@ -81,8 +76,7 @@ func (h *hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		ch <- h.snapshot()
 	}
 
-	// 受信は使わないが、閉じられたことを検知するために読み捨てる
-	ctx := conn.CloseRead(r.Context())
+	ctx := conn.CloseRead(r.Context()) // 受信は読み捨て、切断の検知だけに使う
 
 	for {
 		select {

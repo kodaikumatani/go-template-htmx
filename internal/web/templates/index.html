@@ -5,11 +5,11 @@
   <title>{{ .Title }}</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
-  {{/* WebSocket 拡張。htmx 4 では拡張は <script> を置くだけで有効になる（hx-ext 属性は廃止）。 */}}
   <script src="/static/hx-ws.min.js"></script>
 </head>
-{{/* htmx 4 は 4xx/5xx も swap するので、行き先を指定しないとエラー本文が
-     置き換え対象に貼られて UI が壊れる。ページ全体で #error に集約する。 */}}
+{{/* htmx 4 は 4xx/5xx も swap するので、行き先を決めないとエラー本文が
+     置き換え対象に貼られる。ページ全体で #error に集約する。
+     サーバから届く WebSocket メッセージは <hx-partial> が行き先を持つ。 */}}
 {{/* TODO: WebSocket につなぐ属性を 1 つ足す。
 
        hx-ws:connect="/ws"
