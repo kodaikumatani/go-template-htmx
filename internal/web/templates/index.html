@@ -10,14 +10,6 @@
 {{/* htmx 4 は 4xx/5xx も swap するので、行き先を決めないとエラー本文が
      置き換え対象に貼られる。ページ全体で #error に集約する。
      サーバから届く WebSocket メッセージは <hx-partial> が行き先を持つ。 */}}
-{{/* TODO: WebSocket につなぐ属性を 1 つ足す。
-
-       hx-ws:connect="/ws"
-
-     これを書くと、このページはサーバと常時接続を持つ。
-     サーバから届いた HTML はそのまま swap される。
-     今回サーバが送るのは <hx-partial hx-target="..." hx-swap="...">…</hx-partial> の形なので、
-     行き先はメッセージ自身が持っている（hx-target をここに書く必要はない）。 */}}
 <body hx-status:4xx:inherited="target:#error swap:innerHTML"
       hx-status:5xx:inherited="target:#error swap:innerHTML"
       hx-ws:connect="/ws">
