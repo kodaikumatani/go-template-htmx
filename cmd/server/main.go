@@ -91,6 +91,19 @@ func updateIssue(id int, title string) (Issue, bool) {
 	return Issue{}, false
 }
 
+// deleteIssue は id の Issue を取り除く。
+func deleteIssue(id int) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	for n, i := range issues {
+		if i.ID == id {
+			issues = append(issues[:n], issues[n+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -201,6 +214,17 @@ func main() {
 		}
 		log.Printf("update: %+v", issue)
 		render(w, tmpl, "row.html", issue)
+	})
+
+	// 削除。返すのは空のボディ。
+	mux.HandleFunc("DELETE /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !deleteIssue(pathID(r)) {
+			http.NotFound(w, r)
+			return
+		}
+		log.Printf("delete: id=%d", pathID(r))
+		// 空ボディ + 200。htmx はこれで対象を「空」に置き換える = 行が消える。
+		// 204 No Content にすると htmx は swap しないので、行が残ってしまう。
 	})
 
 	log.Print("listening on http://localhost:8080")

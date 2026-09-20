@@ -15,5 +15,15 @@
 
        行き先（この <li> を outerHTML で置換）は親の :inherited から降ってくるので、
        hx-target と hx-swap は書かない。 */}}
-       <button hx-get="/issues/{{ .ID }}/edit">Edit</button>
+  <button hx-get="/issues/{{ .ID }}/edit">Edit</button>
+
+  {{/* TODO: 削除ボタンに属性を 2 つ足す。
+
+         hx-delete="/issues/{{ .ID }}"
+         hx-confirm="{{ .Title }} を削除しますか?"
+
+       hx-confirm は送信前に確認ダイアログを出す。OK を押したときだけリクエストが飛ぶ。
+       行き先（この <li> を outerHTML で置換）は親の :inherited から降ってくる。
+       サーバは空のボディを返すので、<li> が空に置き換わる = 行が消える。 */}}
+         <button hx-delete="/issues/{{ .ID }}" hx-confirm="{{ .Title }}">削除</button>
 </li>
