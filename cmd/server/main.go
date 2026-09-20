@@ -17,7 +17,7 @@ type Issue struct {
 	Status string // "open" または "closed"
 }
 
-// issues はメモリ上のデータ。複数のリクエストが同時に触るので mutex で守る。
+// メモリ上のデータ。複数のリクエストが同時に触るので mutex で守る。
 var (
 	mu     sync.Mutex
 	nextID = 4
@@ -112,7 +112,6 @@ func deleteIssue(id int) bool {
 func main() {
 	mux := http.NewServeMux()
 
-	// ファイルが 2 つになった。index.html の中から list.html を呼べる。
 	tmpl := template.Must(template.ParseFiles(
 		"internal/web/templates/index.html",
 		"internal/web/templates/list.html",
@@ -121,12 +120,11 @@ func main() {
 		"internal/web/templates/edit-row.html",
 	))
 
-	// htmx.min.js を配る。/static/htmx.min.js で参照できる。
 	mux.Handle("GET /static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("internal/web/static"))))
 
-	// ページ全体を返す。URL のクエリを読んで初期状態に反映する。
-	// これがあるので、?q=... 付きの URL をリロードしても同じ画面が出る。
+	// ページ全体。クエリを読んで初期状態に反映するので、
+	// ?q=... 付きの URL をリロードしても同じ画面になる。
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
 		status := r.URL.Query().Get("status")
@@ -142,8 +140,7 @@ func main() {
 		}
 	})
 
-	// 一覧の部分だけを返す。htmx が呼ぶのはこちら。
-	// ExecuteTemplate で list.html だけを描くので、<html> や <head> は付かない。
+	// 一覧の部分だけ。list.html だけを描くので <html> も <head> も付かない。
 	mux.HandleFunc("GET /issues/list", func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 		q := r.URL.Query().Get("q")
@@ -151,13 +148,8 @@ func main() {
 
 		log.Printf("fragment: q=%q status=%q -> %d 件", q, status, len(data.Issues))
 
-		// アドレスバーに載せる URL をレスポンスヘッダで指示する。
-		// リクエスト先は /issues/list（fragment）だが、アドレスバーに入れたいのは
-		// ページの URL なので、両者を分ける必要がある。
-		// hx-push-url="true" と書くとリクエスト先がそのまま入ってしまい、
-		// リロードしたときに <ul> だけの裸の HTML が表示されてしまう。
-		//
-		// ヘッダはボディを書く前に設定する（書き始めると送信済みになるため）。
+		// アドレスバーに載せるのはページの URL。リクエスト先（/issues/list）とは違うので
+		// hx-push-url="true" は使えず、サーバから指示する。ボディを書く前に設定すること。
 		params := url.Values{}
 		params.Set("q", q)
 		params.Set("status", status)
@@ -168,12 +160,11 @@ func main() {
 		}
 	})
 
-	// 新しい Issue を作る。返すのは「作った 1 行」だけ。
+	// 作成。返すのは作った 1 行と、OOB でクリアするフォーム。
 	mux.HandleFunc("POST /issues", func(w http.ResponseWriter, r *http.Request) {
 		title := strings.TrimSpace(r.FormValue("title"))
 		if title == "" {
-			// 204 No Content を返すと htmx は swap しない（= 何も起きない）。
-			// 入力が空のときはこれで十分。
+			// 204 は htmx が swap しない唯一のステータス（と 304）。
 			log.Print("create: 空のタイトルなので無視")
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -187,9 +178,6 @@ func main() {
 
 		log.Printf("create: %+v", issue)
 
-		// レスポンスに 2 つ入れる。
-		//   1. 作った行           → hx-target/hx-swap の指定どおり一覧の先頭へ
-		//   2. 空の作成フォーム    → hx-swap-oob="true" が付いているので id で置き換わる
 		if err := tmpl.ExecuteTemplate(w, "row.html", issue); err != nil {
 			log.Print(err)
 		}
@@ -198,7 +186,7 @@ func main() {
 		}
 	})
 
-	// 表示状態の行を返す。編集のキャンセルで使う。
+	// 表示状態の行。編集のキャンセルで使う。
 	mux.HandleFunc("GET /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
 		issue, ok := findIssue(pathID(r))
 		if !ok {
@@ -208,7 +196,7 @@ func main() {
 		render(w, tmpl, "row.html", issue)
 	})
 
-	// 編集フォームを返す。行と同じ id を持つので、行の位置に置き換わる。
+	// 編集フォーム。行と同じ id を持つので、行の位置に置き換わる。
 	mux.HandleFunc("GET /issues/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
 		issue, ok := findIssue(pathID(r))
 		if !ok {
@@ -219,7 +207,7 @@ func main() {
 		render(w, tmpl, "edit-row.html", issue)
 	})
 
-	// 更新して、更新後の行を返す。
+	// 更新。更新後の行を返す。
 	mux.HandleFunc("PATCH /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
 		title := strings.TrimSpace(r.FormValue("title"))
 		if title == "" {
@@ -242,15 +230,13 @@ func main() {
 		render(w, tmpl, "row.html", issue)
 	})
 
-	// 削除。返すのは空のボディ。
+	// 削除。空ボディ + 200 で <li> が空に置き換わる（204 だと swap されない）。
 	mux.HandleFunc("DELETE /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !deleteIssue(pathID(r)) {
 			http.NotFound(w, r)
 			return
 		}
 		log.Printf("delete: id=%d", pathID(r))
-		// 空ボディ + 200。htmx はこれで対象を「空」に置き換える = 行が消える。
-		// 204 No Content にすると htmx は swap しないので、行が残ってしまう。
 	})
 
 	log.Print("listening on http://localhost:8080")

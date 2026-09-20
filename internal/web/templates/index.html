@@ -6,52 +6,38 @@
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
 </head>
-<body>
+{{/* htmx 4 は 4xx/5xx も swap するので、行き先を指定しないとエラー本文が
+     置き換え対象に貼られて UI が壊れる。ページ全体で #error に集約する。 */}}
+<body hx-status:4xx:inherited="target:#error swap:innerHTML"
+      hx-status:5xx:inherited="target:#error swap:innerHTML">
+
+  <div id="error" class="error-banner"></div>
+
   <h1>{{ .Title }}</h1>
 
-  {{/* 行き先（#issue-list を outerHTML で置換）は中のコントロール共通なので、
-       親にまとめて :inherited で配る。htmx 4 は :inherited を付けたものだけが継承される。
-       hx-get のような動詞属性は継承できないので、各要素に書く。
-
-       TODO: 「送る値」も共通なので、ここに 1 つ属性を足す。
-
-         今の問題:
-           検索ボックスは自分の値（q）だけを送る。
-           select は自分の値（status）だけを送る。
-           → 片方を操作すると、もう片方の条件が消える。
-
-         直し方:
-           hx-include:inherited="#controls"
-           を下の div に足す。#controls の中にある入力欄がすべて送られるようになる。
-           （公式リファレンス: 入力欄でない要素を指定すると、その中の入力欄が全部入る）
-    */}}
+  {{/* 行き先と送る値はコントロール共通なので親にまとめる。
+       hx-get は継承されないので各要素に書く。 */}}
   <div id="controls"
        hx-target:inherited="#issue-list"
        hx-swap:inherited="outerHTML"
        hx-include:inherited="#controls"
        hx-indicator:inherited="#list-indicator">
 
-    {{/* hx-trigger の中身:
-           input       … 入力のたびに発火するイベント名
-           changed     … 値が実際に変わったときだけ（矢印キーなどを無視する）
-           delay:300ms … 300ms 打鍵が止まってから送る（デバウンス） */}}
     <input type="search" name="q" value="{{ .Q }}" placeholder="タイトルを検索..."
            hx-get="/issues/list"
            hx-trigger="input changed delay:300ms">
 
-    {{/* selected を付けないと、?status=open 付きの URL をリロードしたとき、
-         一覧は絞り込まれているのに select だけ「すべて」に見えてしまう。 */}}
+    {{/* selected が無いと、?status=open 付きの URL をリロードしたときに
+         一覧は絞り込まれているのに select だけ「すべて」に見える。 */}}
     <select name="status" hx-get="/issues/list" hx-trigger="change">
       <option value=""       {{ if eq .Status ""       }}selected{{ end }}>すべて</option>
       <option value="open"   {{ if eq .Status "open"   }}selected{{ end }}>Open</option>
       <option value="closed" {{ if eq .Status "closed" }}selected{{ end }}>Closed</option>
     </select>
 
-    {{/* リクエスト中だけ表示される。htmx が .htmx-request クラスを付け外しする。 */}}
     <span id="list-indicator" class="htmx-indicator">検索中…</span>
   </div>
 
-  {{/* 初期表示では OOB なしで描く（引数の false がテンプレート内の . になる） */}}
   {{ template "new-form.html" false }}
 
   {{ template "list.html" . }}

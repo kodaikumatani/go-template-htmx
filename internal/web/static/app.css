@@ -169,3 +169,20 @@ button[type="submit"]:hover { filter: brightness(1.1); color: #fff; }
   opacity: 0;
   transition: opacity 300ms ease-out;
 }
+
+/* --- エラー表示 --- */
+
+.error-banner {
+  max-width: 720px;
+  margin: 0 auto 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+/* 中身が空のときは枠ごと消す */
+.error-banner:empty { display: none; }
