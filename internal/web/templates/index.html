@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>{{ .Title }}</title>
+  <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
 </head>
 <body>
@@ -27,7 +28,8 @@
   <div id="controls"
        hx-target:inherited="#issue-list"
        hx-swap:inherited="outerHTML"
-       hx-include:inherited="#controls">
+       hx-include:inherited="#controls"
+       hx-indicator:inherited="#list-indicator">
 
     {{/* hx-trigger の中身:
            input       … 入力のたびに発火するイベント名
@@ -44,6 +46,9 @@
       <option value="open"   {{ if eq .Status "open"   }}selected{{ end }}>Open</option>
       <option value="closed" {{ if eq .Status "closed" }}selected{{ end }}>Closed</option>
     </select>
+
+    {{/* リクエスト中だけ表示される。htmx が .htmx-request クラスを付け外しする。 */}}
+    <span id="list-indicator" class="htmx-indicator">検索中…</span>
   </div>
 
   {{/* 初期表示では OOB なしで描く（引数の false がテンプレート内の . になる） */}}

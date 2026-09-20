@@ -1,6 +1,6 @@
 {{/* 編集フォーム。row.html と同じ id="issue-{{ .ID }}" を持つのが肝。
      同じ id・同じ位置に置き換わるので、行がフォームに「化けた」ように見える。 */}}
-<li id="issue-{{ .ID }}"
+<li id="issue-{{ .ID }}" class="issue-row"
     hx-target:inherited="this"
     hx-swap:inherited="outerHTML">
 
@@ -13,7 +13,7 @@
        中の input（name="title"）はフォームなので自動で送られる。 */}}
   <form hx-patch="/issues/{{ .ID }}">
     <input type="text" name="title" value="{{ .Title }}" autofocus>
-    <button type="submit">保存</button>
+    <button type="submit">Save</button>
 
     {{/* TODO: 取消ボタンに属性を 1 つ足す。
 
@@ -22,6 +22,6 @@
          「編集をやめる」をクライアント側で復元するのではなく、
          サーバに表示状態の行をもう一度もらって置き換える。
          type="button" は、これがフォーム送信ボタンにならないようにするため。 */}}
-    <button hx-get="/issues/{{ .ID }}" type="button">取消</button>
+    <button hx-get="/issues/{{ .ID }}" type="button">Cancel</button>
   </form>
 </li>

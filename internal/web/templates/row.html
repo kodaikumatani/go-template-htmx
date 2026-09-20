@@ -3,11 +3,12 @@
      hx-target:inherited="this" は「中のボタンが出すリクエストの行き先は、この <li> 自身」
      という意味。中のボタンには hx-target を書かなくてよくなる。
      "this" は属性が書かれている要素（= この <li>）を指す。 */}}
-<li id="issue-{{ .ID }}"
+<li id="issue-{{ .ID }}" class="issue-row"
     hx-target:inherited="this"
     hx-swap:inherited="outerHTML">
 
-  {{ if eq .Status "closed" }}<s>{{ .Title }}</s>{{ else }}{{ .Title }}{{ end }}
+  <span class="status status-{{ .Status }}">{{ .Status }}</span>
+  <span class="issue-title{{ if eq .Status "closed" }} is-closed{{ end }}">{{ .Title }}</span>
 
   {{/* TODO: この Edit ボタンに属性を 1 つ足す。
 
@@ -20,10 +21,13 @@
   {{/* TODO: 削除ボタンに属性を 2 つ足す。
 
          hx-delete="/issues/{{ .ID }}"
-         hx-confirm="{{ .Title }} を削除しますか?"
+         hx-confirm="Delete &quot;{{ .Title }}&quot;?"
 
        hx-confirm は送信前に確認ダイアログを出す。OK を押したときだけリクエストが飛ぶ。
        行き先（この <li> を outerHTML で置換）は親の :inherited から降ってくる。
        サーバは空のボディを返すので、<li> が空に置き換わる = 行が消える。 */}}
-         <button hx-delete="/issues/{{ .ID }}" hx-confirm="{{ .Title }}">削除</button>
+         <button class="btn-danger"
+          hx-delete="/issues/{{ .ID }}"
+          hx-confirm="Delete &quot;{{ .Title }}&quot;?"
+          hx-swap="outerHTML swap:300ms">Delete</button>
 </li>

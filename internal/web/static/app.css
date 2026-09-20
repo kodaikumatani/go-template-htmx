@@ -1,0 +1,171 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --fg: #1f2328;
+  --muted: #6a737d;
+  --line: #d8dee4;
+  --accent: #0969da;
+  --open: #1a7f37;
+  --closed: #8250df;
+  --danger: #cf222e;
+  --added: #dafbe1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --fg: #e6edf3;
+    --muted: #8b949e;
+    --line: #30363d;
+    --accent: #4493f8;
+    --open: #3fb950;
+    --closed: #ab7df8;
+    --danger: #f85149;
+    --added: #12261e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 16px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+h1 {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  font-size: 22px;
+}
+
+/* --- 検索・フィルタ --- */
+
+#controls,
+#new-issue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 720px;
+  margin: 0 auto 12px;
+}
+
+input[type="search"],
+input[type="text"],
+select {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+}
+
+input[type="search"],
+#new-issue input[type="text"] { flex: 1; }
+
+input:focus, select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-color: var(--accent);
+}
+
+/* --- ボタン --- */
+
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--accent); color: var(--accent); }
+
+button[type="submit"] {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button[type="submit"]:hover { filter: brightness(1.1); color: #fff; }
+
+.btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* --- 一覧 --- */
+
+#issue-list {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.issue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.issue-row:last-child { border-bottom: none; }
+
+.issue-title { flex: 1; }
+
+.issue-title.is-closed { color: var(--muted); text-decoration: line-through; }
+
+.status {
+  flex: none;
+  min-width: 56px;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.status-open { color: var(--open); }
+.status-closed { color: var(--closed); }
+
+.issue-row form {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+}
+
+.issue-row form input { flex: 1; }
+
+/* --- htmx の状態を見せる --- */
+
+/* htmx-indicator は既定で非表示。リクエスト中だけ表示される */
+.htmx-indicator {
+  opacity: 0;
+  color: var(--muted);
+  font-size: 13px;
+  transition: opacity 150ms;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator { opacity: 1; }
+
+/* swap 直後に付くクラス。追加された行を一瞬光らせる */
+.issue-row.htmx-added { background: var(--added); }
+.issue-row { transition: background 700ms ease-out; }
+
+/* 削除時のフェードアウト（hx-swap="outerHTML swap:300ms" と対になっている） */
+.issue-row.htmx-swapping {
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
