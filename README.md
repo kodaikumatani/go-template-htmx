@@ -33,14 +33,55 @@ DB を入れると htmx から関心が逸れるので、意図的に使って�
 | タイトル編集 | 済 | 行 ⇄ 編集フォームを同じ id で差し替え |
 | 削除 | 済 | 空ボディ + `hx-confirm` + フェードアウト |
 | URL 同期 | 済 | レスポンスヘッダ `HX-Push-Url` |
+| エラー表示 | 済 | `hx-status:4xx:inherited` でエラー本文をバナーに集約 |
+| リアルタイム同期 | 済 | `hx-ws:connect` + `<hx-partial>` を WebSocket で配信 |
 | Open / Closed 切り替え | 未 | 行を返して置き換えるだけなので編集と同じ形になる |
 | ページング | 未 | |
 | コメント追加 | 未 | |
 
+## リアルタイム同期
+
+タブを 2 つ開いて片方で操作すると、もう片方が即座に変わる。
+クライアントに書いた JavaScript は 0 行で、`<body hx-ws:connect="/ws">` の 1 属性だけ。
+
+```
+タブA で保存  → PATCH /issues/3      （HTTP。レスポンスは 204 で何も返さない）
+                    ↓
+              サーバがデータを更新し、更新後の行を全接続に配る
+                    ↓ WebSocket
+              <hx-partial hx-target="#issue-3" hx-swap="outerHTML"><li>…</li></hx-partial>
+                    ↓
+              タブA も タブB も同時に書き換わる
+```
+
+**変更は HTTP、画面の更新は WebSocket** と分担している。
+変更系は 204（作成のみ OOB の空フォーム）を返し、行の HTML は必ず WS 経由で届く。
+自分のタブも「その他大勢」の一員として扱うことで、更新の経路が 1 本になる。
+
+WebSocket のメッセージには `hx-target` を指定するリクエスト側の要素が存在しないので、
+**送る HTML 自身が行き先を持つ**（`<hx-partial>` は htmx 4 の新タグ）。
+
+| 操作 | 送るもの |
+| --- | --- |
+| 作成 | `<hx-partial hx-target="#issue-list" hx-swap="afterbegin">` |
+| 更新 | `<hx-partial hx-target="#issue-3" hx-swap="outerHTML">` |
+| 削除 | `<hx-partial hx-target="#issue-3" hx-swap="delete">` |
+| 接続時 | 一覧を丸ごと（下記） |
+
+### 切れても追いつけるようにする
+
+htmx は**タブが裏に回ると WebSocket を切る**（`ws.pauseOnBackground` の既定が `true`）。
+そのため裏にいる間の変更は届かず、戻っても古いままになる。
+
+対策として**接続時に現在の一覧を丸ごと送っている**。`ws.pauseOnBackground` を無効にする手もあるが、
+それでは通信断・スリープ・サーバ再起動を防げない。「切れない前提」ではなく
+「切れても追いつける」設計にしてある。
+
 ## 構成
 
 ```
-cmd/server/main.go            ルーティングとハンドラ（全部ここ）
+cmd/server/main.go            ルーティングとハンドラ
+cmd/server/hub.go             WebSocket の接続管理とブロードキャスト
 internal/web/templates/
   index.html                  ページ全体
   list.html                   一覧（#issue-list ごと返す）
@@ -49,6 +90,7 @@ internal/web/templates/
   new-form.html               作成フォーム（OOB でクリアする）
 internal/web/static/
   htmx.min.js                 htmx 4.0.0 を vendoring
+  hx-ws.min.js                WebSocket 拡張（htmx 4 では <script> を置くだけで有効）
   app.css
 ```
 
@@ -58,11 +100,12 @@ internal/web/static/
 | --- | --- |
 | `GET /` | ページ全体（クエリ `?q=&status=` を読んで復元する） |
 | `GET /issues/list` | `<ul id="issue-list">` だけ |
-| `POST /issues` | 作った `<li>` + OOB の空フォーム |
+| `POST /issues` | OOB の空フォーム（作った行は WebSocket で配る） |
 | `GET /issues/{id}` | 表示状態の `<li>`（編集キャンセル用） |
 | `GET /issues/{id}/edit` | 編集フォームの `<li>` |
-| `PATCH /issues/{id}` | 更新後の `<li>` |
-| `DELETE /issues/{id}` | 空ボディ |
+| `PATCH /issues/{id}` | 204（更新後の行は WebSocket で配る） |
+| `DELETE /issues/{id}` | 204（削除の指示は WebSocket で配る） |
+| `GET /ws` | WebSocket。接続時に一覧、以降は変更のたびに `<hx-partial>` |
 
 **返すのは常に HTML で、JSON は 1 度も出てこない。**
 
@@ -85,6 +128,7 @@ internal/web/static/
 | 削除しても行が残る | 空ボディを `204` で返した。htmx は 204 だけ swap しない。空でも `200` を返す |
 | 画面にエラー文が貼られる | htmx 4 は 4xx/5xx も swap する。誤った URL への 405 の本文がそのまま表示された |
 | 親に書いた `hx-get` が効かない | 動詞属性は継承されない。`:inherited` が効くのは `hx-target` などの修飾属性だけ |
+| 裏のタブに更新が届かない | htmx はタブが隠れると WebSocket を切る（`ws.pauseOnBackground`）。再接続時に状態を送り直して解決 |
 
 ## htmx のバージョン
 
