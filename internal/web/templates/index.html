@@ -5,11 +5,22 @@
   <title>{{ .Title }}</title>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
+  {{/* WebSocket 拡張。htmx 4 では拡張は <script> を置くだけで有効になる（hx-ext 属性は廃止）。 */}}
+  <script src="/static/hx-ws.min.js"></script>
 </head>
 {{/* htmx 4 は 4xx/5xx も swap するので、行き先を指定しないとエラー本文が
      置き換え対象に貼られて UI が壊れる。ページ全体で #error に集約する。 */}}
+{{/* TODO: WebSocket につなぐ属性を 1 つ足す。
+
+       hx-ws:connect="/ws"
+
+     これを書くと、このページはサーバと常時接続を持つ。
+     サーバから届いた HTML はそのまま swap される。
+     今回サーバが送るのは <hx-partial hx-target="..." hx-swap="...">…</hx-partial> の形なので、
+     行き先はメッセージ自身が持っている（hx-target をここに書く必要はない）。 */}}
 <body hx-status:4xx:inherited="target:#error swap:innerHTML"
-      hx-status:5xx:inherited="target:#error swap:innerHTML">
+      hx-status:5xx:inherited="target:#error swap:innerHTML"
+      hx-ws:connect="/ws">
 
   <div id="error" class="error-banner"></div>
 

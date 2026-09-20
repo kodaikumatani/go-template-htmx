@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -64,6 +66,25 @@ func pathID(r *http.Request) int {
 	return id
 }
 
+// target は行 1 つを指すセレクタ。
+func target(id int) string {
+	return fmt.Sprintf("#issue-%d", id)
+}
+
+// partial は WebSocket で送る HTML を組み立てる。
+//
+// <hx-partial> は htmx 4 で入ったタグで、1 つのレスポンス（やメッセージ）の中で
+// 「どこに・どう入れるか」を要素ごとに指定できる。WebSocket には hx-target のような
+// リクエスト側の指定が無いので、送る HTML 自身に行き先を持たせる。
+func partial(tmpl *template.Template, target, swap, name string, data any) string {
+	var body bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&body, name, data); err != nil {
+		log.Print(err)
+		return ""
+	}
+	return fmt.Sprintf(`<hx-partial hx-target=%q hx-swap=%q>%s</hx-partial>`, target, swap, body.String())
+}
+
 // render はテンプレートを 1 つ描く。エラーはログに出すだけ。
 func render(w http.ResponseWriter, tmpl *template.Template, name string, data any) {
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
@@ -123,6 +144,15 @@ func main() {
 	mux.Handle("GET /static/", http.StripPrefix("/static/",
 		http.FileServer(http.Dir("internal/web/static"))))
 
+	// 接続時に現在の一覧を送る。裏のタブが再接続したときに追いつける。
+	h := newHub(func() string {
+		mu.Lock()
+		data := indexData{Issues: append([]Issue(nil), issues...)}
+		mu.Unlock()
+		return partial(tmpl, "#issue-list", "outerHTML", "list.html", data)
+	})
+	mux.HandleFunc("GET /ws", h.serveWS)
+
 	// ページ全体。クエリを読んで初期状態に反映するので、
 	// ?q=... 付きの URL をリロードしても同じ画面になる。
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
@@ -178,9 +208,9 @@ func main() {
 
 		log.Printf("create: %+v", issue)
 
-		if err := tmpl.ExecuteTemplate(w, "row.html", issue); err != nil {
-			log.Print(err)
-		}
+		// 作った行は WebSocket で全員に配る（自分も含む）。
+		// HTTP のレスポンスで返すのは、自分の入力欄をクリアする空フォームだけ。
+		h.broadcast(partial(tmpl, "#issue-list", "afterbegin", "row.html", issue))
 		if err := tmpl.ExecuteTemplate(w, "new-form.html", true); err != nil {
 			log.Print(err)
 		}
@@ -227,16 +257,22 @@ func main() {
 			return
 		}
 		log.Printf("update: %+v", issue)
-		render(w, tmpl, "row.html", issue)
+
+		// 更新後の行も WebSocket 経由。204 を返して HTTP 側では swap させない。
+		h.broadcast(partial(tmpl, target(issue.ID), "outerHTML", "row.html", issue))
+		w.WriteHeader(http.StatusNoContent)
 	})
 
-	// 削除。空ボディ + 200 で <li> が空に置き換わる（204 だと swap されない）。
+	// 削除。
 	mux.HandleFunc("DELETE /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !deleteIssue(pathID(r)) {
 			http.NotFound(w, r)
 			return
 		}
 		log.Printf("delete: id=%d", pathID(r))
+
+		h.broadcast(`<hx-partial hx-target="` + target(pathID(r)) + `" hx-swap="delete"></hx-partial>`)
+		w.WriteHeader(http.StatusNoContent)
 	})
 
 	log.Print("listening on http://localhost:8080")
