@@ -1,10 +1,19 @@
-{{/* 行 1 つ。3 通りに使われる。
-       1. 一覧の中（list.html の range から）
-       2. 追加したときのレスポンス（この 1 行だけが返る）
-       3. この先のインライン編集でも使う
+{{/* 行 1 つ。一覧の中でも、単独のレスポンスでも同じものを使う。
 
-     id="issue-3" のように行ごとに id を振っておく。
-     これが htmx から「この行だけ差し替えて」と指すときの目印になる。 */}}
-<li id="issue-{{ .ID }}">
+     hx-target:inherited="this" は「中のボタンが出すリクエストの行き先は、この <li> 自身」
+     という意味。中のボタンには hx-target を書かなくてよくなる。
+     "this" は属性が書かれている要素（= この <li>）を指す。 */}}
+<li id="issue-{{ .ID }}"
+    hx-target:inherited="this"
+    hx-swap:inherited="outerHTML">
+
   {{ if eq .Status "closed" }}<s>{{ .Title }}</s>{{ else }}{{ .Title }}{{ end }}
+
+  {{/* TODO: この Edit ボタンに属性を 1 つ足す。
+
+         hx-get="/issues/{{ .ID }}/edit"
+
+       行き先（この <li> を outerHTML で置換）は親の :inherited から降ってくるので、
+       hx-target と hx-swap は書かない。 */}}
+       <button hx-get="/issues/{{ .ID }}/edit">Edit</button>
 </li>

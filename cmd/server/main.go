@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -49,6 +50,47 @@ func filterIssues(status, q string) []Issue {
 	return out
 }
 
+// pathID は URL の {id} を数値で取り出す。取れなければ 0。
+func pathID(r *http.Request) int {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		return 0
+	}
+	return id
+}
+
+// render はテンプレートを 1 つ描く。エラーはログに出すだけ。
+func render(w http.ResponseWriter, tmpl *template.Template, name string, data any) {
+	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
+		log.Print(err)
+	}
+}
+
+// findIssue は id の Issue を探す。
+func findIssue(id int) (Issue, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, i := range issues {
+		if i.ID == id {
+			return i, true
+		}
+	}
+	return Issue{}, false
+}
+
+// updateIssue は id の Issue のタイトルを書き換えて、更新後の値を返す。
+func updateIssue(id int, title string) (Issue, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	for n, i := range issues {
+		if i.ID == id {
+			issues[n].Title = title
+			return issues[n], true
+		}
+	}
+	return Issue{}, false
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -58,6 +100,7 @@ func main() {
 		"internal/web/templates/list.html",
 		"internal/web/templates/row.html",
 		"internal/web/templates/new-form.html",
+		"internal/web/templates/edit-row.html",
 	))
 
 	// htmx.min.js を配る。/static/htmx.min.js で参照できる。
@@ -114,6 +157,50 @@ func main() {
 		if err := tmpl.ExecuteTemplate(w, "new-form.html", true); err != nil {
 			log.Print(err)
 		}
+	})
+
+	// 表示状態の行を返す。編集のキャンセルで使う。
+	mux.HandleFunc("GET /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
+		issue, ok := findIssue(pathID(r))
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		render(w, tmpl, "row.html", issue)
+	})
+
+	// 編集フォームを返す。行と同じ id を持つので、行の位置に置き換わる。
+	mux.HandleFunc("GET /issues/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
+		issue, ok := findIssue(pathID(r))
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		log.Printf("edit form: id=%d", issue.ID)
+		render(w, tmpl, "edit-row.html", issue)
+	})
+
+	// 更新して、更新後の行を返す。
+	mux.HandleFunc("PATCH /issues/{id}", func(w http.ResponseWriter, r *http.Request) {
+		title := strings.TrimSpace(r.FormValue("title"))
+		if title == "" {
+			// 空なら変更せず、元の行をそのまま返して編集を終える
+			issue, ok := findIssue(pathID(r))
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			render(w, tmpl, "row.html", issue)
+			return
+		}
+
+		issue, ok := updateIssue(pathID(r), title)
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		log.Printf("update: %+v", issue)
+		render(w, tmpl, "row.html", issue)
 	})
 
 	log.Print("listening on http://localhost:8080")

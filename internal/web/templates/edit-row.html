@@ -1,0 +1,27 @@
+{{/* 編集フォーム。row.html と同じ id="issue-{{ .ID }}" を持つのが肝。
+     同じ id・同じ位置に置き換わるので、行がフォームに「化けた」ように見える。 */}}
+<li id="issue-{{ .ID }}"
+    hx-target:inherited="this"
+    hx-swap:inherited="outerHTML">
+
+  {{/* TODO: この form に属性を 1 つ足す。
+
+         hx-patch="/issues/{{ .ID }}"
+
+       PATCH は「一部を更新する」HTTP メソッド。htmx は hx-patch と書くだけで
+       本物の PATCH リクエストを送る（隠しフィールドの小細工は不要）。
+       中の input（name="title"）はフォームなので自動で送られる。 */}}
+  <form hx-patch="/issues/{{ .ID }}">
+    <input type="text" name="title" value="{{ .Title }}" autofocus>
+    <button type="submit">保存</button>
+
+    {{/* TODO: 取消ボタンに属性を 1 つ足す。
+
+           hx-get="/issues/{{ .ID }}"
+
+         「編集をやめる」をクライアント側で復元するのではなく、
+         サーバに表示状態の行をもう一度もらって置き換える。
+         type="button" は、これがフォーム送信ボタンにならないようにするため。 */}}
+    <button hx-get="/issues/{{ .ID }}" type="button">取消</button>
+  </form>
+</li>
